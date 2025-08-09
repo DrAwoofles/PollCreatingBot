@@ -6,6 +6,6 @@ import java.awt.*;
 public class GPTCreatingPoll extends JPanel{
     public GPTCreatingPoll(CardLayout mainCardLayout, JPanel mainPanel,
                            int windowWidth, int windowHeight){
-        this.setBackground(Color.DARK_GRAY);
+        // Survey questions made by ChatGPT
     }
 }
