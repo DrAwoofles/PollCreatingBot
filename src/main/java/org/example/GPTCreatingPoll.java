@@ -48,7 +48,7 @@ public class GPTCreatingPoll extends JPanel {
 
         sendButton.addActionListener(e -> {
             if(!bot.isPollActive()){
-                writingInstructions.setText("Good! Sending now...");
+                writingInstructions.setText("Please wait...");
                 try {
                     HttpResponse<String> response = Unirest.get("https://app.seker.live/fm1/send-message")
                             .queryString("id", id.getText())

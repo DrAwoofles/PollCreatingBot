@@ -23,8 +23,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 
@@ -42,19 +40,24 @@ public class PollBot extends TelegramLongPollingBot {
     }
 
     public boolean isPollActive(){
-        if(!POLL_STATUS_FILE.exists()){return true;}
+        if(!POLL_STATUS_FILE.exists()){
+            System.out.println("the file doesnt exist");return true;}
         try{
             Scanner scanner = new Scanner(POLL_STATUS_FILE);
+            //System.out.println("reading file...");
             if(scanner.hasNextLine()){
-               if(System.currentTimeMillis() < Long.parseLong(scanner.nextLine())){
-                   return false;
+                //System.out.println("found writing. reading...");
+               if(System.currentTimeMillis() / 1000L < Long.parseLong(scanner.nextLine())){
+                   //System.out.println("current time is smaller than 5 mins");
+                   return true;
                }
             }
             scanner.close();
         } catch (FileNotFoundException | NumberFormatException e) {
+            //System.out.println("There's been an error");
             return true;
         }
-        return true;
+        return false;
     }
 
     private void setPollActivityBy(long unixTimestamp){
@@ -71,14 +74,17 @@ public class PollBot extends TelegramLongPollingBot {
     public void sendPoll(String questionTitle, String[] pollOptions){
         try {
             GetChatMemberCount chatMemberCount = new GetChatMemberCount(GROUP_CHAT_ID.toString());
-            if (execute(chatMemberCount) >= 3) {
+            if (execute(chatMemberCount) >= 1) {
 
                 SendPoll poll = new SendPoll();
                 poll.setChatId(GROUP_CHAT_ID);
                 poll.setQuestion(questionTitle);
                 poll.setOptions(Arrays.asList(pollOptions));
-                poll.setCloseDate((int) (System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5)));
-                setPollActivityBy(poll.getCloseDate());
+                poll.setIsAnonymous(false);
+                int closeDate = (int)(System.currentTimeMillis() / 1000L +
+                        TimeUnit.MINUTES.toSeconds(5));
+                poll.setCloseDate(closeDate);
+                setPollActivityBy(closeDate);
                 Message pollMessage = execute(poll);
                 this.pollMessageId = pollMessage.getMessageId();
 
@@ -120,23 +126,30 @@ public class PollBot extends TelegramLongPollingBot {
                 }
             }
         } else if (update.hasPollAnswer()) {
+            //System.out.println("We got an answer");
             PollAnswer pollAnswer = update.getPollAnswer();
             Long answeredId = pollAnswer.getUser().getId();
             this.voters.add(answeredId);
             try {
-                if(this.voters.size() >= execute(new GetChatMemberCount(GROUP_CHAT_ID.toString()))){
+                if(this.voters.size() >= execute(new GetChatMemberCount(GROUP_CHAT_ID.toString())) - 1){
+                    //System.out.println("Stopping poll...");
                     StopPoll stopPoll = new StopPoll(GROUP_CHAT_ID.toString(), this.pollMessageId);
                     execute(stopPoll);
+                    this.voters.clear();
                 }
             } catch (TelegramApiException e) {
                 throw new RuntimeException(e);
             }
+            //System.out.println("Poll hasn't been stopped");
         } else if (update.hasPoll()) {
             Poll poll = update.getPoll();
+            //System.out.println("got Poll update");
             if(poll.getIsClosed()){
+                //System.out.println("The results are here");
+                setPollActivityBy(0);
                 this.pollResults = "";
                 poll.getOptions().forEach(option -> {
-                    this.pollResults += option.getText() + ": " + (double)(option.getVoterCount() / this.voters.size() * 100) + "%\n";
+                    this.pollResults += option.getText() + ": " + ((double)option.getVoterCount() / this.voters.size()) * 100 + "%\n";
                 });
             }
         }
@@ -146,6 +159,7 @@ public class PollBot extends TelegramLongPollingBot {
         super(BOT_TOKEN);
         try{
             if(!POLL_STATUS_FILE.exists()) POLL_STATUS_FILE.createNewFile();
+            if(!isPollActive()) setPollActivityBy(0);
         } catch (IOException e) {
             throw new RuntimeException("Failed to initialize the file for starting a poll",e);
         }
