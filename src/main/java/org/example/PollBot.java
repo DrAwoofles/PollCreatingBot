@@ -40,8 +40,7 @@ public class PollBot extends TelegramLongPollingBot {
     }
 
     public boolean isPollActive(){
-        if(!POLL_STATUS_FILE.exists()){
-            System.out.println("the file doesnt exist");return true;}
+        if(!POLL_STATUS_FILE.exists()){return true;}
         try{
             Scanner scanner = new Scanner(POLL_STATUS_FILE);
             //System.out.println("reading file...");
@@ -74,7 +73,7 @@ public class PollBot extends TelegramLongPollingBot {
     public void sendPoll(String questionTitle, String[] pollOptions){
         try {
             GetChatMemberCount chatMemberCount = new GetChatMemberCount(GROUP_CHAT_ID.toString());
-            if (execute(chatMemberCount) >= 1) {
+            if (execute(chatMemberCount) >= 3) {
 
                 SendPoll poll = new SendPoll();
                 poll.setChatId(GROUP_CHAT_ID);
